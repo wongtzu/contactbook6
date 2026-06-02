@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>導師聯絡簿每日抄寫系統</title>
+    <style>
+        body { font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; background-color: #ffffff; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 98%; max-width: 1400px; display: flex; flex-direction: column; align-items: center; }
+        
+        /* 置中控制列，移除多餘間距 */
+        .control-bar { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 5px; padding: 10px; }
+        .info-tag { font-size: 1.5rem; font-weight: bold; background: #eef2f7; padding: 10px 20px; border-radius: 8px; border: 1px solid #d1d9e6; }
+        
+        /* 內容區塊 */
+        .content-box { background-color: #f4f7fc; border-radius: 12px; padding: 30px; width: 100%; min-height: 400px; display: flex; justify-content: center; }
+        .main-text-chinese { font-size: 5.8rem; line-height: 1.8; font-weight: 600; color: #000000; white-space: pre-wrap; letter-spacing: 0.05em; }
+        .main-text-english { font-size: 4.0rem; line-height: 1.6; font-weight: 600; color: #000000; white-space: pre-wrap; word-break: break-word; }
+        .main-text-default { font-size: 3.5rem; line-height: 1.6; font-weight: 600; color: #000000; }
+        
+        .wrong-word-container { position: relative; display: inline-block; margin: 0 0.15em; color: #000000; vertical-align: top; }
+        .red-circle { position: absolute; top: 54%; left: 48%; transform: translate(-50%, -50%); border: 6px solid #ff0000; border-radius: 50%; width: 1.4em; height: 1.6em; pointer-events: none; box-sizing: border-box; }
+
+@media (max-width: 768px) {
+    .red-circle {
+        width: 40px;  /* 手機上固定大小，避免過大 */
+        height: 50px;
+    }
+}
+        
+        input[type="date"] { font-size: 1.5rem; padding: 8px 10px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+        .btn-today { font-size: 1.4rem; padding: 8px 20px; background-color: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+/* 這裡新增手機專屬設定，完全不影響電腦版 */
+    @media (max-width: 767px) {
+        .red-circle {
+            width: 45px !important;
+            height: 55px !important;
+            top: 54%;
+            left: 48%;
+        }
+    }
+
+
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="control-bar">
+        <span id="week-display" class="info-tag">第 -- 週</span>
+        <input type="date" id="date-picker" onchange="handleDateChange()">
+        <span id="weekday-display" class="info-tag">星期-</span>
+        <button class="btn-today" onclick="setToToday()">回到今天</button>
+    </div>
+    <div class="content-box">
+        <div id="display-area" class="main-text-default">載入中...</div>
+    </div>
+</div>
+
+<script>
+    const SEMESTER_START = new Date(2026, 7, 31); 
+    
+    const mondayData = {
+	1:  "走「頭」無路 → 投\n按「步」就班 → 部\n相形見「拙」 → 絀",
+
+        2:  "惹「是」生非 → 事\n既往不「究」 → 咎\n杯盤狼「籍」 → 藉",
+
+        3:  "冒險「患」難 → 犯\n名不「符」實 → 副\n披星「載」月 → 戴",
+
+        4:  "白頭「諧」老 → 偕\n莫「明」其妙 → 名\n「即」時行樂 → 及",
+
+        5:  "「箭」拔弩張 → 劍\n動「則」得咎 → 輒\n始作「蛹」者 → 俑",
+
+        6:  "再接再「勵」 → 厲\n「重」山峻嶺 → 崇\n伶牙「利」齒 → 俐",
+
+        7:  "白浪「濤濤」 → 滔\n名列前「矛」 → 茅\n不「齒」下問 → 恥",
+
+        8:  "破「斧」沉舟 → 釜\n提心「吊」膽 → 弔\n「饒」勇善戰 → 驍",
+
+        9:  "「燴」炙人口 → 膾\n老奸巨「滑」 → 猾\n如火如「茶」 → 荼",
+
+        10: "肆無忌「彈」 → 憚\n「磨」頂放踵 → 摩\n老牛「嗜」犢 → 舐",
+
+        11: "「泌」人心脾 → 沁\n美「侖」美奐 → 輪\n「瞻」養費用 → 贍",
+
+        12: "毛骨「聳」然 → 悚\n粗製「爛」造 → 濫\n「節」風沐雨 → 櫛",
+
+        13: "光風「齋」月 → 霽\n始終不「逾」 → 渝\n登報「銘」謝 → 鳴",
+
+        14: "不「醒」人事 → 省\n「循」私舞弊 → 徇\n急流「湧」退 → 勇",
+
+        15: "「垂」手可得 → 唾\n出類拔「粹」 → 萃\n提綱「契」領 → 挈",
+
+        16: "中流「柢」柱 → 砥\n「驅」之若鶩 → 趨\n對牛「談」琴 → 彈",
+
+        17: "傾家「盪」產 → 蕩\n追根究「抵」 → 柢\n金榜「提」名 → 題",
+
+        18: "破「啼」為笑 → 涕\n「托」泥帶水 → 拖\n按「耐」不住 → 捺",
+
+        19: "知書達「理」 → 禮\n民不「寥」生 → 聊\n衣衫襤「縷」 → 褸",
+
+        20: "死有餘「孤」 → 辜\n一「股」作氣 → 鼓\n「固」步自封 → 故"
+    };
+
+    const thursdayData = {
+        1: "accident (n.)   /æksədənt/   事故\nactivity (n.)   /æktɪvəti/   活動\naddress (n.)   /ədrɛs/   地址\nadult (n.)   /ədʌlt/   成年人\nadvertisement (n.)   /ædvɚtaɪzmənt/   廣告", 2: "advice (n.)   /ədvaɪs/   忠告\nair conditioner (n.)   /ɛrkəndɪʃənɚ/   冷氣機\nairlines (n.)   /ɛrlaɪnz/   航線\nalarm (n.)   /əlɑrm/   警鈴\nalbum (n.)   /ælbəm/   相簿", 3: "alphabet (n.)   /ælfəbɛt/   字母\nambulance (n.)   /æmbjələns/   救護車\namount (n.)   /əmaʊnt/   總數\nangel (n.)   /endʒəl/   天使\nanger (n.)   /æŋɡɚ/   生氣", 4: "ankle (n.)   /æŋkəl/   腳踝\narea (n.)   /ɛriə/   地區\narmchair (n.)   /ɑrmtʃɛr/   扶手椅\narmy (n.)   /ɑrmi/   軍隊\nartist (n.)   /ɑrtɪst/   藝術家", 5: "assistant (n.)   /əsɪstənt/   助手\nattention (n.)   /ətɛnʃən/   注意\nbaby sitter (n.)   /bebiˌsɪtɚ/   保母\nbackpack (n.)   /bækˌpæk/   背包\nballoon (n.)   /bəlun/   汽球", 6: "barber (n.)   /bɑrbɚ/   理髮師\nbark (n.)   /bɑrk/   吠聲\nbasement (n.)   /besmənt/   地下室\nbeard (n.)   /bɪrd/   鬍子\nbeauty (n.)   /bjuti/   美貌", 7: "beer (n.)   /bɪr/   啤酒\nbeginner (n.)   /bɪɡɪnɚ/   新手\nbill (n.)   /bɪl/   帳單\nbiology (n.)   /baɪɑlədʒi/   生物學\nblank (n.)   /blæŋk/   空白", 8: "blood (n.)   /blʌd/   血\nblouse (n.)   /blaʊs/   短上衣\nboard (n.)   /bɔrd/   木板\nbomb (n.)   /bɑm/   炸彈\nbone (n.)   /bon/   骨頭", 9: "bookcase (n.)   /bʊkˌkes/   書架\nbowling (n.)   /bolɪŋ/   保齡球\nbranch (n.)   /bræntʃ/   樹枝\nbrick (n.)   /brɪk/   磚塊\nbrunch (n.)   /brʌntʃ/   早午餐", 10: "bucket (n.)   /bʌkɪt/   水桶\nbuffet (n.)   /bəfe/   自助餐\nbundle (n.)   /bʌndəl/   捆\nburger (n.)   /ɝɡɚ/   漢堡\nbutton (n.)   /bʌtən/   鈕扣", 11: "cabbage (n.)   /kæbɪdʒ/   包心菜\ncable (n.)   /kebəl/   纜索\ncafeteria (n.)   /kæfətɪriə/   自助餐館\ncalendar (n.)   /kæləndɚ/   日曆\ncampus (n.)   /kæmpəs/   校園", 12: "cancer (n.)   /kænsɚ/   癌症\ncaptain (n.)   /kæptən/   隊長\ncarpet (n.)   /kɑrpɪt/   地毯\ncarrot (n.)   /kærət/   胡蘿蔔\ncartoon (n.)   /kɑrtun/   卡通", 13: "cash (n.)   /kæʃ/   現款\ncassette (n.)   /kəsɛt/   磁帶\ncause (n.)   /kɔz/   原因\nceiling (n.)   /silɪŋ/   天花板\ncentury (n.)   /sɛntʃəri/   世紀", 14: "cereal (n.)   /sɪriəl/   麥片\nchannel (n.)   /tʃænəl/   頻道\ncharacter (n.)   /kærɪktɚ/   角色\ncharge (n.)   /tʃɑrdʒ/   費用\nchart (n.)   /tʃɑrt/   圖表", 15: "chemistry (n.)   /kɛmɪstri/   化學\nchildhood (n.)   /tʃaɪldˌhʊd/   幼時\nchin (n.)   /tʃɪn/   下巴\nchoice (n.)   /tʃɔɪs/   選擇\nclimate (n.)   /klaɪmɪt/   氣候", 16: "closet (n.)   /klɑzɪt/   壁櫥\ncloud (n.)   /klaʊd/   雲\ncoach (n.)   /kotʃ/   教練\ncoast (n.)   /kost/   海岸\ncockroach (n.)   /kɑkˌrotʃ/   蟑螂", 17: "coin (n.)   /kɔɪn/   硬幣\ncollege (n.)   /kɑlɪdʒ/   學院\ncommand (n.)   /kəmænd/   命令\ncomment (n.)   /kɑmɛnt/   評論\ncompany (n.)   /kʌmpəni/   公司", 18: "completion (n.)   /kəmpliʃən/   完成\nconcern (n.)   /kənsɝn/   關懷\ncongratulation (n.)   /kənɡrætʃəleʃən/   祝賀\ncontact lens (n.)   /kɑntækt lɛnz/   隱形眼鏡\ncontract (n.)   /kɑntrækt/   契約", 19: "convenience store (n.)   /kənvinjəns stɔr/   便利商店\nconversation (n.)   /kɑnvɚseʃən/   會話\ncorn (n.)   /kɔrn/   玉米\ncotton (n.)   /kɑtən/   棉花\ncough (n.)   /kɔf/   咳嗽", 20: "couple (n.)   /kʌpəl/   一對\ncourage (n.)   /kɝɪdʒ/   勇氣\ncourt (n.)   /kɔrt/   法庭\ncowboy (n.)   /kaʊˌbɔɪ/   牛仔\ncrab (n.)   /kræb/   螃蟹"
+    };
+
+    function init() { setToToday(); }
+    function setToToday() {
+        const dp = document.getElementById('date-picker');
+        const now = new Date();
+        dp.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        renderContent(now);
+    }
+    function handleDateChange() { renderContent(new Date(document.getElementById('date-picker').value)); }
+    function formatToCircle(text) { return text.replace(/「(.)」/g, '<span class="wrong-word-container">$1<span class="red-circle"></span></span>'); }
+    
+    function renderContent(dateObj) {
+        const d1 = new Date(SEMESTER_START);
+        const d2 = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        const diff = Math.floor((d2 - d1) / 86400000);
+        let week = Math.floor(diff / 7) + 1;
+        const day = dateObj.getDay();
+        
+        document.getElementById('weekday-display').innerText = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][day];
+        document.getElementById('week-display').innerText = (d2 < d1) ? "尚未開學" : `第 ${String(week).padStart(2, '0')} 週`;
+        
+        const area = document.getElementById('display-area');
+        
+        if (week >= 1 && week <= 20) {
+            if (day === 1) {
+                area.className = "main-text-chinese";
+                area.innerHTML = formatToCircle(mondayData[week] || "本週無資料");
+            } else if (day === 4) {
+                area.className = "main-text-english";
+                area.innerText = thursdayData[week] || "本週無資料";
+            } else {
+                area.className = "main-text-default";
+                area.innerText = `今天是星期${"日一二三四五六"[day]}，請抄寫聯絡簿事項。`;
+            }
+        } else {
+            area.className = "main-text-default";
+            area.innerText = "不在學期範圍內。";
+        }
+    }
+    init();
+</script>
+</body>
+</html>
