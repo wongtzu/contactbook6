@@ -30,6 +30,17 @@
         
         input[type="date"] { font-size: 1.5rem; padding: 8px 10px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
         .btn-today { font-size: 1.4rem; padding: 8px 20px; background-color: #4a90e2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+		/* 這裡新增手機專屬設定，完全不影響電腦版 */
+    @media (max-width: 767px) {
+        .red-circle {
+            width: 45px !important;
+            height: 55px !important;
+            top: 54%;
+            left: 48%;
+        }
+    }
+
     </style>
 </head>
 <body>
